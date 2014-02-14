@@ -19,7 +19,7 @@ else (JPEG_FOUND)
 endif (JPEG_FOUND)
 
 if (PNG_FOUND)
-    SET(src png.c)
+    SET(src png.c compress.c)
     include_directories (${PNG_INCLUDE_DIR})
     ADD_TORCH_PACKAGE(png "${src}" "${luasrc}" "Image Processing")
     TARGET_LINK_LIBRARIES(png luaT TH ${PNG_LIBRARIES})

@@ -271,6 +271,26 @@ end
 rawset(image, 'save', save)
 
 ----------------------------------------------------------------------
+-- in-memory compression
+--
+local function compress(tensor)
+    if not xlua.require 'compress' then
+      dok.error('libpng package not found, please install libpng','image.compress')
+    end
+    return tensor.compress.compress()
+end
+rawset(image, 'compress', compress)
+
+local function decompress(tensor)
+    if not xlua.require 'compress' then
+      dok.error('libpng package not found, please install libpng','image.decompress')
+    end
+    return tensor.compress.decompress()
+end
+rawset(image, 'decompress', decompress)
+
+
+----------------------------------------------------------------------
 -- crop
 --
 local function crop(...)
