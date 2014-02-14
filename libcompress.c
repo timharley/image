@@ -21,20 +21,20 @@ void _compress_abort_(const char * s, ...)
 #define abort_ _compress_abort_
 #define torch_(NAME) TH_CONCAT_3(torch_, Real, NAME)
 #define torch_Tensor TH_CONCAT_STRING_3(torch., Real, Tensor)
-#define compress_(NAME) TH_CONCAT_3(compress_, Real, NAME)
+#define libcompress_(NAME) TH_CONCAT_3(libcompress_, Real, NAME)
 
-#include "generic/compress.c"
+#include "generic/libcompress.c"
 #include "THGenerateAllTypes.h"
 
-DLL_EXPORT int luaopen_compress(lua_State *L)
+DLL_EXPORT int luaopen_libcompress(lua_State *L)
 {
-  compress_FloatMain_init(L);
-  compress_DoubleMain_init(L);
-  compress_ByteMain_init(L);
+  libcompress_FloatMain_init(L);
+  libcompress_DoubleMain_init(L);
+  libcompress_ByteMain_init(L);
 
-  luaL_register(L, "compress.double", compress_DoubleMain__);
-  luaL_register(L, "compress.float", compress_FloatMain__);
-  luaL_register(L, "compress.byte", compress_ByteMain__);
+  luaL_register(L, "libcompress.double", libcompress_DoubleMain__);
+  luaL_register(L, "libcompress.float", libcompress_FloatMain__);
+  luaL_register(L, "libcompress.byte", libcompress_ByteMain__);
 
   return 1;
 }

@@ -274,18 +274,18 @@ rawset(image, 'save', save)
 -- in-memory compression
 --
 local function compress(tensor)
-    if not xlua.require 'compress' then
-      dok.error('libpng package not found, please install libpng','image.compress')
+    if not xlua.require 'libcompress' then
+      dok.error('libcompress error','image.compress')
     end
-    return tensor.compress.compress()
+    return tensor.libcompress.compress()
 end
 rawset(image, 'compress', compress)
 
 local function decompress(tensor)
-    if not xlua.require 'compress' then
-      dok.error('libpng package not found, please install libpng','image.decompress')
+    if not xlua.require 'libcompress' then
+      dok.error('libcompress error','image.decompress')
     end
-    return tensor.compress.decompress()
+    return tensor.libcompress.decompress()
 end
 rawset(image, 'decompress', decompress)
 
