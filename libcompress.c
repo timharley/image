@@ -53,7 +53,7 @@ void my_png_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
     /* copy new bytes to end of buffer */
     memcpy(p->buffer + p->size, data, length);
     p->size = nsize;
-    printf("Buffer address = %p, size = %lu\n", p->buffer, nsize);
+    //printf("Buffer address = %p, size = %lu\n", p->buffer, nsize);
 }
 
 /* This is optional but included to show how png_set_write_fn() is called */

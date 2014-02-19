@@ -277,17 +277,28 @@ local function compress(tensor)
     if not xlua.require 'libcompress' then
       dok.error('libcompress error','image.compress')
     end
-    return {data = libcompress.compress(tensor), size = tensor:size()}
+
+    --local function decompress(compressed_data) 
+    --    return libcompress.decompress(compressed_data.data, compressed_data.size)
+    --end
+    --return {data = libcompress.compress(tensor), size = tensor:size(), decompress = decompress}
+
+    local compressed_data = libcompress.compress(tensor) 
+    local original_size = tensor:size()
+    local function decompress(compressed_data) 
+        return libcompress.decompress(compressed_data.data, compressed_data.size)
+    end
+    return {data = compressed_data, size = original_size, decompress = decompress}
 end
 rawset(image, 'compress', compress)
 
-local function decompress(packed_tensor)
-    if not xlua.require 'libcompress' then
-      dok.error('libcompress error','image.decompress')
-    end
-    return libcompress.decompress(packed_tensor.data, packed_tensor.size)
-end
-rawset(image, 'decompress', decompress)
+--local function decompress(packed_tensor)
+--    if not xlua.require 'libcompress' then
+--      dok.error('libcompress error','image.decompress')
+--    end
+--    return libcompress.decompress(packed_tensor.data, packed_tensor.size)
+--end
+--rawset(image, 'decompress', decompress)
 
 
 ----------------------------------------------------------------------
