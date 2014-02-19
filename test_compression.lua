@@ -1,39 +1,28 @@
 require 'image'
 require 'math'
-require 'libpng'
-require 'libcompress'
 
-
-local function test_tensortype(tensortype)
-    local a = image.load("lena.png", tensortype)
-    local b = image.compress(a)
-    local c = image.decompress(b)
-end
-
-local tensors = {torch.ByteTensor()} --, torch.FloatTensor(), torch.DoubleTensor()}
+lena3d = image.load("lena.png", nil, "byte")
+lena2d = lena3d:transpose(1,2):clone():transpose(2,1):select(1, 2)
+lena4d = lena3d:repeatTensor(3,1,1,1)
+local tensors = {lena3d, lena2d, lena4d} --, torch.FloatTensor(), torch.DoubleTensor()}
 
 for i, t in ipairs(tensors) do
-    t = t.libpng.load("lena.png")
-    t_backup = t:clone()
-    print("loaded into: ", t:type())
+    print("--------TESTING--------")
     print("Image dims = ")
     print(t:size())
+    print("Image strides = ")
+    print(t:stride())
     print("Compressing:")
     compressed = image.compress(t)
     print("Normal size: " .. t:storage():size())
     print("Compressed size: " .. compressed.data:size())
-    print(compressed)
-    --decompressed = image.decompress(compressed)
+    -- print(compressed)
     decompressed = compressed:decompress()
     print("Decompressed type: " .. decompressed:type())
     print("Decompressed size: " )
     print(decompressed:size())
-
-    --print("Decompressing")
-    --decompressed = t.libcompress.decompress(compressed)
-    --print("Normal size = " .. t:storage():size() .. " in items, not bytes")
-    --print("Compressed size = " .. compressed:storage():size() .. "in bytes")
     local sum = 0
-    delta = t_backup:mul(-1):add(decompressed):apply( function(x) sum = sum + math.abs(x) end )
-    print("After round tripping, difference is " .. sum)
+    max = t:double():mul(-1):add(decompressed:double()):abs():max()
+    delta = t:clone():mul(-1):add(decompressed):apply( function(x) sum = sum + math.abs(x) end )
+    print("After round tripping, difference is " .. sum .. " max is " .. max)
 end
