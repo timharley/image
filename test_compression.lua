@@ -1,4 +1,5 @@
 require 'image'
+require 'math'
 require 'libpng'
 require 'libcompress'
 
@@ -20,10 +21,16 @@ for i, t in ipairs(tensors) do
     compressed = t.libcompress.compress(t)
     print("Normal size: " .. t:storage():size())
     print("Compressed size: " .. compressed:size())
+    decompressed = libcompress.byte.decompress(compressed)
+    print("Decompressed type: " .. decompressed:type())
+    print("Decompressed size: " )
+    print(decompressed:size())
+
     --print("Decompressing")
     --decompressed = t.libcompress.decompress(compressed)
     --print("Normal size = " .. t:storage():size() .. " in items, not bytes")
     --print("Compressed size = " .. compressed:storage():size() .. "in bytes")
-    --delta = t:clone():mul(-1):add(decompressed)
-    --print("After round tripping, difference is " .. delta:norm(2))
+    local sum = 0
+    delta = t:clone():mul(-1):add(decompressed):apply( function(x) sum = sum + math.abs(x) end )
+    print("After round tripping, difference is " .. sum)
 end

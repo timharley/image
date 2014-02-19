@@ -69,9 +69,47 @@ static THTensor * libcompress_(unpack_png_string)(THByteStorage * packed_tensor)
 
     //THStorage * image_data = THStorage_(newWithSize)(packed_tensor->size());
     //long size = {3, 512, 512};
-    //THLongStorage * size_vec = THLongStorage_newWithData(size, 3);
+    printf("storage_size = %ld\n", packed_tensor->size);
+    struct mem_buffer compressed_image;
+    compressed_image.buffer = packed_tensor->data;
+    compressed_image.size = packed_tensor->size;
+    compressed_image.read_index = 0;
+    png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    png_infop info_ptr = png_create_info_struct(png_ptr);
+
+    // the code in this if statement gets called if libpng encounters an error
+    if (setjmp(png_jmpbuf(png_ptr))) {
+        fprintf(stderr, "error from libpng\n");
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        return 0;
+    }
+
+    // init png reading from out buffer
+    png_set_read_fn(png_ptr, &compressed_image, my_png_read_data);
+
+    // read all the info up to the image data
+    png_read_info(png_ptr, info_ptr);
+    int width, height, bit_depth, colour_type;
+    png_uint_32 png_width, png_height;
+    png_get_IHDR(png_ptr, info_ptr, &png_width, &png_height, &bit_depth, &colour_type, 0, 0, 0);
+    width = png_width;
+    height = png_height;
+    printf("height = %d, width = %d\n", height, width);
+    if(width * height != 3*512*512)
+        abort_("Packed tensor has unexpected dimensions");
     THTensor * unpacked_image_tensor = THTensor_(newWithSize3d)(3, 512, 512);
-    //THLongStorage_free(size_vec);
+
+    real * tensor_data = THByteTensor_data(unpacked_image_tensor);
+    png_bytep * row_pointers = (png_bytep *)malloc(height * sizeof(png_bytep));
+    const int row_stride = width;
+    for(int i = 0; i < height; ++i)
+        row_pointers[i] = &tensor_data[unpacked_image_tensor->storageOffset + i*row_stride];
+
+    png_read_image(png_ptr, row_pointers);
+
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    free(row_pointers);
+
     return unpacked_image_tensor;
 }
 
