@@ -9,18 +9,19 @@
 
 static THByteStorage * libcompress_(pack_png_string)(THTensor * image_tensor)
 {
-    printf("%p\n", (void*)libcompress_(pack_png_string));
-    printf("%lu\n", sizeof(real));
-
     struct mem_buffer compressed_image;
     compressed_image.buffer = NULL;
     compressed_image.size = 0;
     compressed_image.read_index = 0;
 
+    //libpng needs each row to be contiguous.
+    //We also assume every thing is contiguous when populating row_pointers below.
     THTensor *tensorc = THTensor_(newContiguous)(image_tensor);
     real *tensor_data = THTensor_(data)(tensorc);
-   // if(tensorc->nDimension == 2)
     
+    //A 2D tensor is an image, so we can just compress it.
+    //We collapse any higher dimensional tensor to 2D 
+    //equivalent to stacking each 2D plane to give a very tall image.
     int width = tensorc->size[tensorc->nDimension-1];
     int height = 1;
     for(int i = 0; i < tensorc->nDimension-1; ++i)
@@ -48,28 +49,26 @@ static THByteStorage * libcompress_(pack_png_string)(THTensor * image_tensor)
         png_set_IHDR(write_ptr, write_info_ptr, width, height, 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE, 
             PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
-        fprintf(stderr, "header:\n");
+        //fprintf(stderr, "header:\n");
         png_write_info(write_ptr, write_info_ptr);
-        fprintf(stderr, "Image:\n");
+        //fprintf(stderr, "Image:\n");
         png_write_image(write_ptr, row_pointers);
-        fprintf(stderr, "Footer:\n");
+        //fprintf(stderr, "Footer:\n");
         //png_write_end(write_ptr, NULL);
-        char out_file_name[] = "/Users/tim.harley/git/pngtest/buffer_dmt.png";
-        FILE *wfp = fopen(out_file_name, "wb");
-        fwrite(compressed_image.buffer, 1, compressed_image.size, wfp);
-        fclose(wfp);
+        //char out_file_name[] = "/Users/tim.harley/git/pngtest/buffer_dmt.png";
+        //FILE *wfp = fopen(out_file_name, "wb");
+        //fwrite(compressed_image.buffer, 1, compressed_image.size, wfp);
+        //fclose(wfp);
+        png_destroy_write_struct(&write_ptr, &write_info_ptr);
+        free(row_pointers);
     }
+    //The byte storage now assumes control of the memory buffer.
     THByteStorage * png_string = THByteStorage_newWithData(compressed_image.buffer, compressed_image.size);
     return png_string;
 }
 
 static THTensor * libcompress_(unpack_png_string)(THByteStorage * packed_tensor)
 {
-    printf("%p\n", (void*)libcompress_(unpack_png_string));
-
-    //THStorage * image_data = THStorage_(newWithSize)(packed_tensor->size());
-    //long size = {3, 512, 512};
-    printf("storage_size = %ld\n", packed_tensor->size);
     struct mem_buffer compressed_image;
     compressed_image.buffer = packed_tensor->data;
     compressed_image.size = packed_tensor->size;

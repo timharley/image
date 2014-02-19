@@ -18,7 +18,7 @@ for i, t in ipairs(tensors) do
     print("Image dims = ")
     print(t:size())
     print("Compressing:")
-    compressed = t.libcompress.compress(t)
+    compressed = libcompress.byte.compress(t)
     print("Normal size: " .. t:storage():size())
     print("Compressed size: " .. compressed:size())
     decompressed = libcompress.byte.decompress(compressed)
