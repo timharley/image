@@ -78,7 +78,7 @@ DLL_EXPORT int luaopen_libcompress(lua_State *L)
 
   //luaL_register(L, "libcompress.double", libcompress_DoubleMain__);
   //luaL_register(L, "libcompress.float", libcompress_FloatMain__);
-  luaL_register(L, "libcompress.byte", libcompress_ByteMain__);
+  luaL_register(L, "libcompress", libcompress_ByteMain__);
 
   return 1;
 }

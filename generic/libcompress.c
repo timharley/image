@@ -67,7 +67,7 @@ static THByteStorage * libcompress_(pack_png_string)(THTensor * image_tensor)
     return png_string;
 }
 
-static THTensor * libcompress_(unpack_png_string)(THByteStorage * packed_tensor)
+static THTensor * libcompress_(unpack_png_string)(THByteStorage * packed_tensor, THLongStorage * tensor_dimensions)
 {
     struct mem_buffer compressed_image;
     compressed_image.buffer = packed_tensor->data;
@@ -94,9 +94,13 @@ static THTensor * libcompress_(unpack_png_string)(THByteStorage * packed_tensor)
     width = png_width;
     height = png_height;
     printf("height = %d, width = %d\n", height, width);
-    if(width * height != 3*512*512)
+    int expected_size = 1;
+    for(int i = 0; i < tensor_dimensions->size; ++i)
+        expected_size *= tensor_dimensions->data[i];
+
+    if(width * height != expected_size)
         abort_("Packed tensor has unexpected dimensions");
-    THTensor * unpacked_image_tensor = THTensor_(newWithSize3d)(3, 512, 512);
+    THTensor * unpacked_image_tensor = THTensor_(newWithSize)(tensor_dimensions, NULL);
 
     real * tensor_data = THByteTensor_data(unpacked_image_tensor);
     png_bytep * row_pointers = (png_bytep *)malloc(height * sizeof(png_bytep));
@@ -122,7 +126,8 @@ static int libcompress_(Main_pack)(lua_State *L) {
 
 static int libcompress_(Main_unpack)(lua_State *L) {
   THByteStorage *packed_tensor = luaT_checkudata(L, 1, "torch.ByteStorage");
-  THTensor *image_tensor = libcompress_(unpack_png_string)(packed_tensor);
+  THLongStorage *tensor_dimensions = luaT_checkudata(L, 2, "torch.LongStorage");
+  THTensor *image_tensor = libcompress_(unpack_png_string)(packed_tensor, tensor_dimensions);
   luaT_pushudata(L, image_tensor, torch_Tensor);
   return 1;
 }
@@ -142,4 +147,5 @@ DLL_EXPORT int libcompress_(Main_init)(lua_State *L)
 }
 
 #endif
+
 #endif
