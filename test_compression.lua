@@ -18,7 +18,7 @@ end
 local tensors = {lena3d, lena3d_b, lena2d_a, lena2d_b, lena4d} 
 
 for i, t in ipairs(tensors) do
-    t = t:contiguous()
+    -- t = t:contiguous()
     t0 = sys.clock()
     compressed = image.compress(t)
     t1 = sys.clock()
