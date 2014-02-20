@@ -27,7 +27,7 @@ static THByteStorage * libcompress_(pack_png_string)(THTensor * image_tensor)
     for(int i = 0; i < tensorc->nDimension-1; ++i)
         height = height*tensorc->size[i];
 
-    printf("height = %d, width = %d\n", height, width);
+    //printf("height = %d, width = %d\n", height, width);
     png_bytep * row_pointers = (png_bytep *)malloc(height * sizeof(png_bytep));
     const int row_stride = width;
     for(int i = 0; i < height; ++i)
@@ -93,7 +93,7 @@ static THTensor * libcompress_(unpack_png_string)(THByteStorage * packed_tensor,
     png_get_IHDR(png_ptr, info_ptr, &png_width, &png_height, &bit_depth, &colour_type, 0, 0, 0);
     width = png_width;
     height = png_height;
-    printf("height = %d, width = %d\n", height, width);
+    //printf("height = %d, width = %d\n", height, width);
     int expected_size = 1;
     for(int i = 0; i < tensor_dimensions->size; ++i)
         expected_size *= tensor_dimensions->data[i];
