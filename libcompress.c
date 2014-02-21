@@ -25,38 +25,40 @@ void _compress_abort_(const char * s, ...)
 struct mem_buffer
 {
     unsigned char * buffer;
-    size_t read_index, size;
+    size_t read_write_index, size;
 };
 
 void png_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
 {
-    struct mem_buffer* p=(struct mem_buffer*)png_get_io_ptr(png_ptr);
-    if(p->read_index + length > p->size)
+    struct mem_buffer * p = (struct mem_buffer*)png_get_io_ptr(png_ptr);
+    if(p->read_write_index + length > p->size)
         abort_("libcompress.decompress.png_read_data: Tried to read past the end of a buffer!");
-    memcpy(data, p->buffer + p->read_index, length);
-    p->read_index = p->read_index + length;
+    memcpy(data, p->buffer + p->read_write_index, length);
+    p->read_write_index = p->read_write_index + length;
 }
 
 void png_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
 {
     struct mem_buffer* p=(struct mem_buffer*)png_get_io_ptr(png_ptr); 
-    size_t nsize = p->size + length;
+    size_t total_length = p->read_write_index + length;
 
-    /* allocate or grow buffer */
-    // This is a really inefficient way of doing this!
-    // We could grow by a fixed factor e.g 3.5 each time we need to reallocate, then realloc down to the correct size.
-    if(p->buffer)
-        p->buffer = (unsigned char*)realloc(p->buffer, nsize);
-    else
-        p->buffer = (unsigned char*)malloc(nsize);
+    // If the allocator starts being silly, this could be a really
+    // inefficient way of dynamically sizing the buffer!
+    // In practice, the png compression dominates memory reallocation.
+    if(total_length > p->size)
+    {
+        size_t new_size = total_length;
+        p->buffer = (unsigned char*)realloc(p->buffer, new_size);
+        p->size = new_size;
+    }
 
     if(!p->buffer)
         abort_("libcompress.compress.png_write_data: Failed to allocate buffer!");
 
 
     /* copy new bytes to end of buffer */
-    memcpy(p->buffer + p->size, data, length);
-    p->size = nsize;
+    memcpy(p->buffer + p->read_write_index, data, length);
+    p->read_write_index = total_length;
 }
 
 /* The libpng specification specifies that if providing your own write_fn,
@@ -73,18 +75,13 @@ void png_flush(png_structp png_ptr) { }
 // compressed completely differently by this function compared to it's representation in file.
 static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
 {
-    struct mem_buffer compressed_image;
-    compressed_image.buffer = NULL;
-    compressed_image.size = 0;
-    compressed_image.read_index = 0;
-
     //libpng needs each row to be contiguous.
     //We also assume every thing is contiguous when populating row_pointers below.
     //If the tensor is contiguous, this doesn't do any extra work.
     //Note: we need to free this later.
     THByteTensor * tensorc = THByteTensor_newContiguous(image_tensor);
     byte * tensor_data = THByteTensor_data(tensorc);
-    
+
     //A 2D tensor is an image, so we can just compress it.
     //We collapse any higher dimensional tensor to 2D 
     //equivalent to stacking each 2D plane to give a very tall image.
@@ -98,25 +95,35 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
     for(int i = 0; i < height; ++i)
         row_pointers[i] = &tensor_data[tensorc->storageOffset + i*row_stride];
 
-    {
-        png_structp write_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-        if (!write_ptr) abort_("libcompress.compress: couldn't create png_write_struct");
+    // The is object will be a simple container to hold the compressed data written out by libpng
+    // We will wrap it in a THByteStorage later 
+    struct mem_buffer compressed_image;
+    compressed_image.buffer = NULL;
+    compressed_image.size = 0;
+    compressed_image.read_write_index = 0;
 
-        png_infop write_info_ptr = png_create_info_struct(write_ptr);
-        if (!write_info_ptr) abort_("libcompress.compress: couldn't create png_info_struct");
+    // Write out the image tensor in to our buffer using libpng.
+    png_structp write_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!write_ptr) abort_("libcompress.compress: couldn't create png_write_struct");
 
-        png_set_write_fn(write_ptr, &compressed_image, png_write_data, png_flush);
+    png_infop write_info_ptr = png_create_info_struct(write_ptr);
+    if (!write_info_ptr) abort_("libcompress.compress: couldn't create png_info_struct");
 
-        png_set_IHDR(write_ptr, write_info_ptr, width, height, 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE, 
-            PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+    png_set_write_fn(write_ptr, &compressed_image, png_write_data, png_flush);
+    
+    //Hardcoded defaults for libpng.
+    //TODO: experiment to see if other options are better for this application
+    png_set_IHDR(write_ptr, write_info_ptr, width, height, 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE, 
+        PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
-        png_write_info(write_ptr, write_info_ptr);
-        png_write_image(write_ptr, row_pointers);
-        png_destroy_write_struct(&write_ptr, &write_info_ptr);
-        free(row_pointers);
-    }
+    png_write_info(write_ptr, write_info_ptr);
+    png_write_image(write_ptr, row_pointers);
 
-    //Can now free (or reduce the reference count of) our contiguous tensor.
+    //Tidy up the objects we used for the libpng session
+    png_destroy_write_struct(&write_ptr, &write_info_ptr);
+    free(row_pointers);
+
+    //Must now free (or reduce the reference count of) our contiguous tensor.
     THByteTensor_free(tensorc);
 
     //The byte storage now assumes control of the memory buffer.
@@ -130,7 +137,7 @@ static THByteTensor * libcompress_unpack_png_string(THByteStorage * packed_tenso
     struct mem_buffer compressed_image;
     compressed_image.buffer = packed_tensor->data;
     compressed_image.size = packed_tensor->size;
-    compressed_image.read_index = 0;
+    compressed_image.read_write_index = 0;
 
     png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     png_infop info_ptr = png_create_info_struct(png_ptr);

@@ -19,11 +19,11 @@ local tensors = {lena3d, lena3d_b, lena2d_a, lena2d_b, lena4d}
 
 for i, t in ipairs(tensors) do
     -- t = t:contiguous()
-    t0 = sys.clock()
-    compressed = image.compress(t)
-    t1 = sys.clock()
-    decompressed = compressed:decompress()
-    t2 = sys.clock()
+    local t0 = sys.clock()
+    local compressed = image.compress(t)
+    local t1 = sys.clock()
+    local decompressed = compressed:decompress()
+    local t2 = sys.clock()
     print("--------TESTING--------")
     -- print("Image dims = ")
     -- print(t:size())
@@ -36,7 +36,7 @@ for i, t in ipairs(tensors) do
     print("Compression rate (Mpixel/sec): " .. num_pixels(t) * 10^-6 / (t1-t0))
     print("Decompression rate ( Mpixel/sec): " .. num_pixels(t) * 10^-6 / (t2-t1))
     local sum = 0
-    delta = t:clone():mul(-1):add(decompressed):apply( function(x) sum = sum + math.abs(x) end )
+    local delta = t:clone():mul(-1):add(decompressed):apply( function(x) sum = sum + math.abs(x) end )
     print("After round tripping, difference is " .. sum)
     assert(sum == 0, "Decompressed image does not match original image!")
 end
