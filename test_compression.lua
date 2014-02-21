@@ -36,7 +36,7 @@ for i, t in ipairs(tensors) do
     print("Compression rate (Mpixel/sec): " .. num_pixels(t) * 10^-6 / (t1-t0))
     print("Decompression rate ( Mpixel/sec): " .. num_pixels(t) * 10^-6 / (t2-t1))
     local sum = 0
-    max = t:double():mul(-1):add(decompressed:double()):abs():max()
     delta = t:clone():mul(-1):add(decompressed):apply( function(x) sum = sum + math.abs(x) end )
-    print("After round tripping, difference is " .. sum .. " max is " .. max)
+    print("After round tripping, difference is " .. sum)
+    assert(sum == 0, "Decompressed image does not match original image!")
 end
