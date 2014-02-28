@@ -71,7 +71,7 @@ void png_flush(png_structp png_ptr) { }
 // i.e. That a k x m x n Tensor describes k images.
 // We collapse any higher dimensions whilst compressing a tensor with >2 dimensions.
 // this is equivalent to vertically 'stacking' each image in the Tensor.
-// This means that e.g. a 3 x m x n colour image as loaded by image.load will be i
+// This means that e.g. a 3 x m x n colour image as loaded by image.load will be
 // compressed completely differently by this function compared to it's representation in file.
 static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
 {

@@ -278,11 +278,6 @@ local function compress(tensor)
       dok.error('libcompress error','image.compress')
     end
 
-    --local function decompress(compressed_data) 
-    --    return libcompress.decompress(compressed_data.data, compressed_data.size)
-    --end
-    --return {data = libcompress.compress(tensor), size = tensor:size(), decompress = decompress}
-
     local compressed_data = libcompress.compress(tensor) 
     local original_size = tensor:size()
     local function decompress(compressed_data) 
