@@ -39,7 +39,7 @@ void png_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
 
 void png_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
 {
-    struct mem_buffer* p=(struct mem_buffer*)png_get_io_ptr(png_ptr); 
+    struct mem_buffer* p=(struct mem_buffer*)png_get_io_ptr(png_ptr);
     size_t total_length = p->read_write_index + length;
 
     // If the allocator starts being silly, this could be a really
@@ -67,7 +67,7 @@ void png_flush(png_structp png_ptr) { }
 
 // Pack the underlying tensor data from a Tensor into a PNG string.
 // We don't attempt to save any space/work if the Tensor describes an odd view of a storage
-// We assume that the most 2 contiguous dimensions of the storage describe an image, 
+// We assume that the most 2 contiguous dimensions of the storage describe an image,
 // i.e. That a k x m x n Tensor describes k images.
 // We collapse any higher dimensions whilst compressing a tensor with >2 dimensions.
 // this is equivalent to vertically 'stacking' each image in the Tensor.
@@ -83,7 +83,7 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
     byte * tensor_data = THByteTensor_data(tensorc);
 
     //A 2D tensor is an image, so we can just compress it.
-    //We collapse any higher dimensional tensor to 2D 
+    //We collapse any higher dimensional tensor to 2D
     //equivalent to stacking each 2D plane to give a very tall image.
     int width = tensorc->size[tensorc->nDimension-1];
     int height = 1;
@@ -96,7 +96,7 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
         row_pointers[i] = &tensor_data[tensorc->storageOffset + i*row_stride];
 
     // The is object will be a simple container to hold the compressed data written out by libpng
-    // We will wrap it in a THByteStorage later 
+    // We will wrap it in a THByteStorage later
     struct mem_buffer compressed_image;
     compressed_image.buffer = NULL;
     compressed_image.size = 0;
@@ -110,10 +110,10 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
     if (!write_info_ptr) abort_("libcompress.compress: couldn't create png_info_struct");
 
     png_set_write_fn(write_ptr, &compressed_image, png_write_data, png_flush);
-    
+
     //Hardcoded defaults for libpng.
     //TODO: experiment to see if other options are better for this application
-    png_set_IHDR(write_ptr, write_info_ptr, width, height, 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE, 
+    png_set_IHDR(write_ptr, write_info_ptr, width, height, 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
         PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
     png_write_info(write_ptr, write_info_ptr);
