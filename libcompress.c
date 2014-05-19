@@ -10,16 +10,6 @@
 
 #define byte unsigned char
 
-void _compress_abort_(const char * s, ...)
-{
-  va_list args;
-  va_start(args, s);
-  vfprintf(stderr, s, args);
-  fprintf(stderr, "\n");
-  va_end(args);
-  abort();
-}
-
 #define abort_ THError
 
 struct mem_buffer
@@ -42,9 +32,9 @@ void png_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
     struct mem_buffer* p=(struct mem_buffer*)png_get_io_ptr(png_ptr);
     size_t total_length = p->read_write_index + length;
 
-    // If the allocator starts being silly, this could be a really
-    // inefficient way of dynamically sizing the buffer!
-    // In practice, the png compression dominates memory reallocation.
+    /* If the allocator starts being silly, this could be a really
+       inefficient way of dynamically sizing the buffer!
+       In practice, the png compression dominates memory reallocation. */
     if(total_length > p->size)
     {
         size_t new_size = total_length;
@@ -65,26 +55,26 @@ void png_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
 you need to provide a flush fn too, but this never gets called.*/
 void png_flush(png_structp png_ptr) { }
 
-// Pack the underlying tensor data from a Tensor into a PNG string.
-// We don't attempt to save any space/work if the Tensor describes an odd view of a storage
-// We assume that the most 2 contiguous dimensions of the storage describe an image,
-// i.e. That a k x m x n Tensor describes k images.
-// We collapse any higher dimensions whilst compressing a tensor with >2 dimensions.
-// this is equivalent to vertically 'stacking' each image in the Tensor.
-// This means that e.g. a 3 x m x n colour image as loaded by image.load will be
-// compressed completely differently by this function compared to it's representation in file.
+/* Pack the underlying tensor data from a Tensor into a PNG string.
+We don't attempt to save any space/work if the Tensor describes an odd view of a storage
+We assume that the most 2 contiguous dimensions of the storage describe an image,
+i.e. That a k x m x n Tensor describes k images.
+We collapse any higher dimensions whilst compressing a tensor with >2 dimensions.
+this is equivalent to vertically 'stacking' each image in the Tensor.
+This means that e.g. a 3 x m x n colour image as loaded by image.load will be
+compressed completely differently by this function compared to it's representation in file. */
 static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
 {
-    //libpng needs each row to be contiguous.
-    //We also assume every thing is contiguous when populating row_pointers below.
-    //If the tensor is contiguous, this doesn't do any extra work.
-    //Note: we need to free this later.
+    /* libpng needs each row to be contiguous.
+    We also assume every thing is contiguous when populating row_pointers below.
+    If the tensor is contiguous, this doesn't do any extra work.
+    Note: we need to free this later. */
     THByteTensor * tensorc = THByteTensor_newContiguous(image_tensor);
     byte * tensor_data = THByteTensor_data(tensorc);
 
-    //A 2D tensor is an image, so we can just compress it.
-    //We collapse any higher dimensional tensor to 2D
-    //equivalent to stacking each 2D plane to give a very tall image.
+    /* A 2D tensor is an image, so we can just compress it.
+    We collapse any higher dimensional tensor to 2D
+    equivalent to stacking each 2D plane to give a very tall image.*/
     int width = tensorc->size[tensorc->nDimension-1];
     int height = 1;
     for(int i = 0; i < tensorc->nDimension-1; ++i)
@@ -95,14 +85,14 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
     for(int i = 0; i < height; ++i)
         row_pointers[i] = &tensor_data[tensorc->storageOffset + i*row_stride];
 
-    // The is object will be a simple container to hold the compressed data written out by libpng
-    // We will wrap it in a THByteStorage later
+    /* The is object will be a simple container to hold the compressed data written out by libpng
+    We will wrap it in a THByteStorage later */
     struct mem_buffer compressed_image;
     compressed_image.buffer = NULL;
     compressed_image.size = 0;
     compressed_image.read_write_index = 0;
 
-    // Write out the image tensor in to our buffer using libpng.
+    /* Write out the image tensor in to our buffer using libpng. */
     png_structp write_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!write_ptr) abort_("libcompress.compress: couldn't create png_write_struct");
 
@@ -111,46 +101,47 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
 
     png_set_write_fn(write_ptr, &compressed_image, png_write_data, png_flush);
 
-    //Hardcoded defaults for libpng.
-    //TODO: experiment to see if other options are better for this application
+    /* TODO: Experiment with non-default libpng options */
     png_set_IHDR(write_ptr, write_info_ptr, width, height, 8, PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE,
         PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
     png_write_info(write_ptr, write_info_ptr);
     png_write_image(write_ptr, row_pointers);
 
-    //Tidy up the objects we used for the libpng session
+    /* Tidy up the objects we used for the libpng session */
     png_destroy_write_struct(&write_ptr, &write_info_ptr);
     free(row_pointers);
 
-    //Must now free (or reduce the reference count of) our contiguous tensor.
+    /* Must now free (or reduce the reference count of) our contiguous tensor. */
     THByteTensor_free(tensorc);
 
-    //The byte storage now assumes control of the memory buffer.
+    /* The byte storage now assumes control of the memory buffer. */
     THByteStorage * png_string = THByteStorage_newWithData(compressed_image.buffer, compressed_image.size);
     return png_string;
 }
 
 static THByteTensor * libcompress_unpack_png_string(THByteStorage * packed_data, THByteTensor * image_tensor)
 {
-    //Set up struct to allow libpng to read from the THByteStorage of compressed data
+    /* Set up struct to allow libpng to read from the THByteStorage of compressed data. */
     struct mem_buffer compressed_image;
     compressed_image.buffer = packed_data->data;
     compressed_image.size = packed_data->size;
     compressed_image.read_write_index = 0;
 
     png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    png_infop info_ptr = png_create_info_struct(png_ptr);
+    if (!png_ptr) abort_("libcompress.decompress: couldn't create png_read_struct");
 
-    // the code in this if statement gets called if libpng encounters an error
+    png_infop info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr) abort_("libcompress.decompress: couldn't create png_info_struct");
+
+    /* the code in this if statement gets called if libpng encounters an error. */
     if (setjmp(png_jmpbuf(png_ptr))) {
         abort_("libcompress.decompress: libpng error.");
     }
 
-    // init png reading from out buffer
     png_set_read_fn(png_ptr, &compressed_image, png_read_data);
 
-    // read all the info up to the image data
+    /* Read all the png header info up to the image data. */
     png_read_info(png_ptr, info_ptr);
     int width, height, bit_depth, colour_type;
     png_uint_32 png_width, png_height;
@@ -158,22 +149,14 @@ static THByteTensor * libcompress_unpack_png_string(THByteStorage * packed_data,
     width = png_width;
     height = png_height;
 
-    //Check that the packed data has the expected number of bytes
-    int expected_size = 1;
-    /*for(int i = 0; i < tensor_dimensions->size; ++i)
-        expected_size *= tensor_dimensions->data[i];*/
-
-    expected_size = THByteTensor_nElement(image_tensor);
+    const int expected_size = THByteTensor_nElement(image_tensor);
+    if(width * height != expected_size)
+        abort_("libcompress.decompress: Packed tensor size does not match expected size.");
 
     if(!THByteTensor_isContiguous(image_tensor))
         abort_("libcompress.decompress: Cannot decompress into non-contiguous Tensor");
 
-    if(width * height != expected_size)
-        abort_("libcompress.decompress: Packed tensor size does not match expected size.");
-
-    //Create our tensor, and write directory in to it's storage with libpng
-    //THByteTensor * unpacked_image_tensor = THByteTensor_newWithSize(tensor_dimensions, NULL);
-
+    /* Make libpng decompress directly into the tensor storage. */
     byte * tensor_data = THByteTensor_data(image_tensor);
     png_bytep * row_pointers = (png_bytep *)malloc(height * sizeof(png_bytep));
     const int row_stride = width;

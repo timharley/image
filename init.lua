@@ -287,12 +287,12 @@ local function compress(tensor)
 end
 rawset(image, 'compress', compress)
 
-local function decompress(packed_tensor, output_tensor, output_size)
+local function decompress(packed_tensor, output_tensor_or_size)
     if not xlua.require 'libcompress' then
       dok.error('libcompress error','image.decompress')
     end
 
-    libcompress.decompress(packed_tensor, output_tensor, output_size)
+    local output_tensor = libcompress.decompress(packed_tensor, output_tensor_or_size)
     return output_tensor
 end
 rawset(image, 'decompress', decompress)
