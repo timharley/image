@@ -15,7 +15,7 @@ local function maxdiff(x,y)
 end
 
 local im = image.load('lena.png', nil, "byte")
-local png, size = image.compress(im)
+local png, size, decompress_f = image.compress(im)
 
 function compresstests.decompress_inplace()
     local decompressed = torch.ByteTensor(size)
@@ -26,6 +26,11 @@ end
 function compresstests.decompress_given_size()
     local decompressed = image.decompress(png, size)
     tester:asserteq(maxdiff(im, decompressed), 0, 'decompressing given a size does not give the original tensor!')
+end
+
+function compresstests.decompress_via_closure()
+    local decompressed = decompress_f()
+    tester:asserteq(maxdiff(im, decompressed), 0, 'decompressing via closure does not give the original tensor!')
 end
 
 function compresstests.noncontiguous()

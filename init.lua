@@ -280,8 +280,8 @@ local function compress(tensor)
 
     local compressed_data = libcompress.compress(tensor)
     local original_size = tensor:size()
-    local function decompress(compressed_data)
-        return libcompress.decompress(compressed_data.data, compressed_data.size)
+    local function decompress()
+        return libcompress.decompress(compressed_data, original_size)
     end
     return compressed_data, original_size, decompress
 end
