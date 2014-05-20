@@ -190,19 +190,32 @@ static int libjpeg_(Main_load)(lua_State *L)
   /* int row_stride;		/1* physical row width in output buffer *1/ */
   int i, k;
 
-  const char *filename = luaL_checkstring(L, 1);
 
   THTensor *tensor = NULL;
 
-  /* In this example we want to open the input file before doing anything else,
-   * so that the setjmp() error recovery below can assume the file is open.
-   * VERY IMPORTANT: use "b" option to fopen() if you are on a machine that
-   * requires it in order to read binary files.
-   */
+  THByteTensor *src = luaT_checkudata(L, 1, "torch.ByteTensor");
+  if(src != NULL) {
+    if(THByteTensor_isContiguous(src)) {
+      unsigned char * data = THByteTensor_data(src);
+      size_t size = THByteTensor_nElement(src);
+      infile = fmemopen(data, size, "rb");
+    }
+    else {
+      luaL_error(L, "ByteTensor source is not contiguous");
+    }
+  }
+  else {
+    /* In this example we want to open the input file before doing anything else,
+     * so that the setjmp() error recovery below can assume the file is open.
+     * VERY IMPORTANT: use "b" option to fopen() if you are on a machine that
+     * requires it in order to read binary files.
+     */
 
-  if ((infile = fopen(filename, "rb")) == NULL)
-  {
-    luaL_error(L, "cannot open file <%s> for reading", filename);
+    const char *filename = luaL_checkstring(L, 1);
+    if ((infile = fopen(filename, "rb")) == NULL)
+    {
+      luaL_error(L, "cannot open file <%s> for reading", filename);
+    }
   }
   
   /* Step 1: allocate and initialize JPEG decompression object */
