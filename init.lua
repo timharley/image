@@ -283,7 +283,7 @@ local function compress(tensor)
     local function decompress()
         return libcompress.decompress(compressed_data, original_size)
     end
-    return compressed_data, original_size, decompress
+    return compressed_data, decompress
 end
 rawset(image, 'compress', compress)
 

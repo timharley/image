@@ -15,7 +15,8 @@ local function maxdiff(x,y)
 end
 
 local im = image.load('lena.png', nil, "byte")
-local png, size, decompress_f = image.compress(im)
+local size = im:size()
+local png, decompress_f = image.compress(im)
 
 function compresstests.decompress_inplace()
     local decompressed = torch.ByteTensor(size)
