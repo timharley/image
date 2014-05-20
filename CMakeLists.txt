@@ -26,7 +26,7 @@ if (PNG_FOUND)
     ADD_TORCH_PACKAGE(png "${src}" "${luasrc}" "Image Processing")
     TARGET_LINK_LIBRARIES(png luaT TH ${PNG_LIBRARIES})
 
-    SET(src libcompress.c)
+    SET(src compress.c)
     include_directories (${PNG_INCLUDE_DIR})
     ADD_TORCH_PACKAGE(compress "${src}" "${luasrc}" "Image Processing")
     TARGET_LINK_LIBRARIES(compress luaT TH ${PNG_LIBRARIES})
