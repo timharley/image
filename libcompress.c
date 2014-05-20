@@ -77,12 +77,13 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
     equivalent to stacking each 2D plane to give a very tall image.*/
     int width = tensorc->size[tensorc->nDimension-1];
     int height = 1;
-    for(int i = 0; i < tensorc->nDimension-1; ++i)
+    int i;
+    for(i = 0; i < tensorc->nDimension-1; ++i)
         height = height*tensorc->size[i];
 
     png_bytep * row_pointers = (png_bytep *)malloc(height * sizeof(png_bytep));
     const int row_stride = width;
-    for(int i = 0; i < height; ++i)
+    for(i = 0; i < height; ++i)
         row_pointers[i] = &tensor_data[tensorc->storageOffset + i*row_stride];
 
     /* The is object will be a simple container to hold the compressed data written out by libpng
@@ -160,7 +161,8 @@ static THByteTensor * libcompress_unpack_png_string(THByteStorage * packed_data,
     byte * tensor_data = THByteTensor_data(image_tensor);
     png_bytep * row_pointers = (png_bytep *)malloc(height * sizeof(png_bytep));
     const int row_stride = width;
-    for(int i = 0; i < height; ++i)
+    int i;
+    for(i = 0; i < height; ++i)
         row_pointers[i] = &tensor_data[image_tensor->storageOffset + i*row_stride];
 
     png_read_image(png_ptr, row_pointers);
