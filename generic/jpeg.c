@@ -91,7 +91,7 @@ static int libjpeg_(Main_size)(lua_State *L)
   struct my_error_mgr jerr;
   /* More stuff */
   FILE * infile;		/* source file */
-  
+
   const char *filename = luaL_checkstring(L, 1);
 
   /* In this example we want to open the input file before doing anything else,
@@ -104,9 +104,9 @@ static int libjpeg_(Main_size)(lua_State *L)
   {
     luaL_error(L, "cannot open file <%s> for reading", filename);
   }
-  
+
   /* Step 1: allocate and initialize JPEG decompression object */
-  
+
   /* We set up the normal JPEG error routines, then override error_exit. */
   cinfo.err = jpeg_std_error(&jerr.pub);
   jerr.pub.error_exit = libjpeg_(Main_error);
@@ -193,7 +193,7 @@ static int libjpeg_(Main_load)(lua_State *L)
 
   THTensor *tensor = NULL;
 
-  THByteTensor *src = luaT_checkudata(L, 1, "torch.ByteTensor");
+  THByteTensor *src = luaT_toudata(L, 1, "torch.ByteTensor");
   if(src != NULL) {
     if(THByteTensor_isContiguous(src)) {
       unsigned char * data = THByteTensor_data(src);

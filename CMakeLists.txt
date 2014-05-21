@@ -1,6 +1,8 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6 FATAL_ERROR)
 CMAKE_POLICY(VERSION 2.6)
 
+set(CMAKE_C_FLAGS "-Wno-unsequenced -Wno-unused-result")
+
 FIND_PACKAGE(Torch REQUIRED)
 FIND_PACKAGE(JPEG QUIET)
 FIND_PACKAGE(PNG QUIET)
@@ -10,7 +12,7 @@ ADD_TORCH_PACKAGE(ppm "${src}" "${luasrc}" "Image Processing")
 TARGET_LINK_LIBRARIES(ppm luaT TH)
 
 if (JPEG_FOUND)
-    SET(src jpeg.c)
+    SET(src jpeg.c fmemopen.c)
     include_directories (${JPEG_INCLUDE_DIR})
     ADD_TORCH_PACKAGE(jpeg "${src}" "${luasrc}" "Image Processing")
     TARGET_LINK_LIBRARIES(jpeg luaT TH ${JPEG_LIBRARIES})

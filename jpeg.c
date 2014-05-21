@@ -4,6 +4,10 @@
 #include <jpeglib.h>
 #include <setjmp.h>
 
+#ifndef fmemopen
+#include "fmemopen.h"
+#endif
+
 #define torch_(NAME) TH_CONCAT_3(torch_, Real, NAME)
 #define torch_Tensor TH_CONCAT_STRING_3(torch., Real, Tensor)
 #define libjpeg_(NAME) TH_CONCAT_3(libjpeg_, Real, NAME)
