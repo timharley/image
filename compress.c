@@ -75,14 +75,14 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
     /* A 2D tensor is an image, so we can just compress it.
     We collapse any higher dimensional tensor to 2D
     equivalent to stacking each 2D plane to give a very tall image.*/
-    int width = tensorc->size[tensorc->nDimension-1];
-    int height = 1;
-    int i;
+    size_t width = tensorc->size[tensorc->nDimension-1];
+    size_t height = 1;
+    size_t i;
     for(i = 0; i < tensorc->nDimension-1; ++i)
         height = height*tensorc->size[i];
 
     png_bytep * row_pointers = (png_bytep *)malloc(height * sizeof(png_bytep));
-    const int row_stride = width;
+    const size_t row_stride = width;
     for(i = 0; i < height; ++i)
         row_pointers[i] = &tensor_data[tensorc->storageOffset + i*row_stride];
 
