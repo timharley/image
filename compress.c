@@ -14,13 +14,13 @@
 
 struct mem_buffer
 {
-    unsigned char * buffer;
+    byte* buffer;
     size_t read_write_index, size;
 };
 
 void png_read_data(png_structp png_ptr, png_bytep data, png_size_t length)
 {
-    struct mem_buffer * p = (struct mem_buffer*)png_get_io_ptr(png_ptr);
+    struct mem_buffer* p = (struct mem_buffer*)png_get_io_ptr(png_ptr);
     if(p->read_write_index + length > p->size)
         abort_("libcompress.decompress.png_read_data: Tried to read past the end of a buffer!");
     memcpy(data, p->buffer + p->read_write_index, length);
@@ -63,14 +63,14 @@ We collapse any higher dimensions whilst compressing a tensor with >2 dimensions
 this is equivalent to vertically 'stacking' each image in the Tensor.
 This means that e.g. a 3 x m x n colour image as loaded by image.load will be
 compressed completely differently by this function compared to it's representation in file. */
-static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
+static THByteStorage* libcompress_pack_png_string(THByteTensor* image_tensor)
 {
     /* libpng needs each row to be contiguous.
     We also assume every thing is contiguous when populating row_pointers below.
     If the tensor is contiguous, this doesn't do any extra work.
     Note: we need to free this later. */
-    THByteTensor * tensorc = THByteTensor_newContiguous(image_tensor);
-    byte * tensor_data = THByteTensor_data(tensorc);
+    THByteTensor* tensorc = THByteTensor_newContiguous(image_tensor);
+    byte* tensor_data = THByteTensor_data(tensorc);
 
     /* A 2D tensor is an image, so we can just compress it.
     We collapse any higher dimensional tensor to 2D
@@ -81,7 +81,7 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
     for(i = 0; i < tensorc->nDimension-1; ++i)
         height = height*tensorc->size[i];
 
-    png_bytep * row_pointers = (png_bytep *)malloc(height * sizeof(png_bytep));
+    png_bytep* row_pointers = (png_bytep*)malloc(height * sizeof(png_bytep));
     const size_t row_stride = width;
     for(i = 0; i < height; ++i)
         row_pointers[i] = &tensor_data[tensorc->storageOffset + i*row_stride];
@@ -117,11 +117,11 @@ static THByteStorage * libcompress_pack_png_string(THByteTensor * image_tensor)
     THByteTensor_free(tensorc);
 
     /* The byte storage now assumes control of the memory buffer. */
-    THByteStorage * png_string = THByteStorage_newWithData(compressed_image.buffer, compressed_image.size);
+    THByteStorage* png_string = THByteStorage_newWithData(compressed_image.buffer, compressed_image.size);
     return png_string;
 }
 
-static THByteTensor * libcompress_unpack_png_string(THByteStorage * packed_data, THByteTensor * image_tensor)
+static THByteTensor* libcompress_unpack_png_string(THByteStorage* packed_data, THByteTensor* image_tensor)
 {
     /* Set up struct to allow libpng to read from the THByteStorage of compressed data. */
     struct mem_buffer compressed_image;
@@ -158,10 +158,10 @@ static THByteTensor * libcompress_unpack_png_string(THByteStorage * packed_data,
         abort_("libcompress.decompress: Cannot decompress into non-contiguous Tensor");
 
     /* Make libpng decompress directly into the tensor storage. */
-    byte * tensor_data = THByteTensor_data(image_tensor);
-    png_bytep * row_pointers = (png_bytep *)malloc(height * sizeof(png_bytep));
-    const int row_stride = width;
-    int i;
+    byte* tensor_data = THByteTensor_data(image_tensor);
+    png_bytep* row_pointers = (png_bytep*)malloc(height * sizeof(png_bytep));
+    const size_t row_stride = width;
+    size_t i;
     for(i = 0; i < height; ++i)
         row_pointers[i] = &tensor_data[image_tensor->storageOffset + i*row_stride];
 
@@ -174,17 +174,17 @@ static THByteTensor * libcompress_unpack_png_string(THByteStorage * packed_data,
 }
 
 static int libcompress_Main_pack(lua_State *L) {
-  THByteTensor *image_tensor = luaT_checkudata(L, 1, "torch.ByteTensor");
-  THByteStorage *packed_data = libcompress_pack_png_string(image_tensor);
-  luaT_pushudata(L, packed_data, "torch.ByteStorage");
-  return 1;
+    THByteTensor* image_tensor = luaT_checkudata(L, 1, "torch.ByteTensor");
+    THByteStorage* packed_data = libcompress_pack_png_string(image_tensor);
+    luaT_pushudata(L, packed_data, "torch.ByteStorage");
+    return 1;
 }
 
 
 static int libcompress_Main_unpack(lua_State *L) {
-    THByteStorage *packed_data = luaT_checkudata(L, 1, "torch.ByteStorage");
-    THByteTensor *image_tensor = luaT_toudata(L, 2, "torch.ByteTensor");
-    THLongStorage *tensor_dimensions;
+    THByteStorage* packed_data = luaT_checkudata(L, 1, "torch.ByteStorage");
+    THByteTensor* image_tensor = luaT_toudata(L, 2, "torch.ByteTensor");
+    THLongStorage* tensor_dimensions;
 
     if(image_tensor == NULL) {
         if((tensor_dimensions = luaT_toudata(L, 2, "torch.LongStorage"))) {
@@ -202,13 +202,13 @@ static int libcompress_Main_unpack(lua_State *L) {
 
 static const luaL_reg libcompress__Main__[] =
 {
-  {"compress", libcompress_Main_pack},
-  {"decompress", libcompress_Main_unpack},
-  {NULL, NULL}
+    {"compress", libcompress_Main_pack},
+    {"decompress", libcompress_Main_unpack},
+    {NULL, NULL}
 };
 
 DLL_EXPORT int luaopen_libcompress(lua_State *L)
 {
-  luaL_register(L, "libcompress", libcompress__Main__);
-  return 1;
+    luaL_register(L, "libcompress", libcompress__Main__);
+    return 1;
 }
