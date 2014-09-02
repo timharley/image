@@ -47,4 +47,5 @@ function compresstests.correctsize()
 end
 
 tester:add(compresstests)
+--for _, f in pairs(compresstests) do f() end
 tester:run()

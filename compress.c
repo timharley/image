@@ -55,6 +55,18 @@ void png_write_data(png_structp png_ptr, png_bytep data, png_size_t length)
 you need to provide a flush fn too, but this never gets called.*/
 void png_flush(png_structp png_ptr) { }
 
+/* Useful for when we have some kind of error. */
+static void tidyup_write(png_structpp structpp, png_infopp infopp, png_bytep* row_pointers, THByteTensor* tensor)
+{
+    /* Tidy up the objects we used for the libpng session */
+    png_destroy_write_struct(structpp, infopp);
+
+    if(row_pointers) free(row_pointers);
+
+    /* Must now free (or reduce the reference count of) our contiguous tensor. */
+    if(tensor) THByteTensor_free(tensor);
+}
+
 /* Pack the underlying tensor data from a Tensor into a PNG string.
 We don't attempt to save any space/work if the Tensor describes an odd view of a storage
 We assume that the most 2 contiguous dimensions of the storage describe an image,
@@ -95,10 +107,16 @@ static THByteStorage* libcompress_pack_png_string(THByteTensor* image_tensor)
 
     /* Write out the image tensor in to our buffer using libpng. */
     png_structp write_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!write_ptr) abort_("libcompress.compress: couldn't create png_write_struct");
+    if (!write_ptr) {
+      tidyup_write(&write_ptr, NULL, row_pointers, tensorc);
+      abort_("libcompress.compress: couldn't create png_write_struct");
+    }
 
     png_infop write_info_ptr = png_create_info_struct(write_ptr);
-    if (!write_info_ptr) abort_("libcompress.compress: couldn't create png_info_struct");
+    if (!write_info_ptr) {
+      tidyup_write(&write_ptr, &write_info_ptr, row_pointers, tensorc);
+      abort_("libcompress.compress: couldn't create png_info_struct");
+    }
 
     png_set_write_fn(write_ptr, &compressed_image, png_write_data, png_flush);
 
@@ -109,12 +127,7 @@ static THByteStorage* libcompress_pack_png_string(THByteTensor* image_tensor)
     png_write_info(write_ptr, write_info_ptr);
     png_write_image(write_ptr, row_pointers);
 
-    /* Tidy up the objects we used for the libpng session */
-    png_destroy_write_struct(&write_ptr, &write_info_ptr);
-    free(row_pointers);
-
-    /* Must now free (or reduce the reference count of) our contiguous tensor. */
-    THByteTensor_free(tensorc);
+    tidyup_write(&write_ptr, &write_info_ptr, row_pointers, tensorc);
 
     /* The byte storage now assumes control of the memory buffer. */
     THByteStorage* png_string = THByteStorage_newWithData(compressed_image.buffer, compressed_image.size);
@@ -133,10 +146,14 @@ static THByteTensor* libcompress_unpack_png_string(THByteStorage* packed_data, T
     if (!png_ptr) abort_("libcompress.decompress: couldn't create png_read_struct");
 
     png_infop info_ptr = png_create_info_struct(png_ptr);
-    if (!info_ptr) abort_("libcompress.decompress: couldn't create png_info_struct");
+    if (!info_ptr) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        abort_("libcompress.decompress: couldn't create png_info_struct");
+    }
 
     /* the code in this if statement gets called if libpng encounters an error. */
     if (setjmp(png_jmpbuf(png_ptr))) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
         abort_("libcompress.decompress: libpng error.");
     }
 
@@ -151,11 +168,15 @@ static THByteTensor* libcompress_unpack_png_string(THByteStorage* packed_data, T
     height = png_height;
 
     const int expected_size = THByteTensor_nElement(image_tensor);
-    if(width * height != expected_size)
+    if(width * height != expected_size) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
         abort_("libcompress.decompress: Packed tensor size does not match expected size.");
+    }
 
-    if(!THByteTensor_isContiguous(image_tensor))
+    if(!THByteTensor_isContiguous(image_tensor)) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
         abort_("libcompress.decompress: Cannot decompress into non-contiguous Tensor");
+    }
 
     /* Make libpng decompress directly into the tensor storage. */
     byte* tensor_data = THByteTensor_data(image_tensor);
@@ -164,6 +185,13 @@ static THByteTensor* libcompress_unpack_png_string(THByteStorage* packed_data, T
     size_t i;
     for(i = 0; i < height; ++i)
         row_pointers[i] = &tensor_data[image_tensor->storageOffset + i*row_stride];
+
+    /* the code in this if statement gets called if libpng encounters an error. */
+    if (setjmp(png_jmpbuf(png_ptr))) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        free(row_pointers);
+        abort_("libcompress.decompress: libpng error.");
+    }
 
     png_read_image(png_ptr, row_pointers);
 
@@ -186,6 +214,7 @@ static int libcompress_Main_unpack(lua_State *L) {
     THByteTensor* image_tensor = luaT_toudata(L, 2, "torch.ByteTensor");
     THLongStorage* tensor_dimensions;
 
+    int* leak_me = (int*)malloc(1024*sizeof(int));
     if(image_tensor == NULL) {
         if((tensor_dimensions = luaT_toudata(L, 2, "torch.LongStorage"))) {
             image_tensor = THByteTensor_newWithSize(tensor_dimensions, NULL);
