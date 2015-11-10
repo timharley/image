@@ -368,6 +368,33 @@ end
 rawset(image, 'save', save)
 
 ----------------------------------------------------------------------
+-- in-memory compression
+--
+local function compress(tensor)
+    if not xlua.require 'libcompress' then
+      dok.error('libcompress error','image.compress')
+    end
+
+    local compressed_data = libcompress.compress(tensor)
+    local original_size = tensor:size()
+    local function decompress()
+        return libcompress.decompress(compressed_data, original_size)
+    end
+    return compressed_data, decompress
+end
+rawset(image, 'compress', compress)
+
+local function decompress(packed_tensor, output_tensor_or_size)
+    if not xlua.require 'libcompress' then
+      dok.error('libcompress error','image.decompress')
+    end
+
+    local output_tensor = libcompress.decompress(packed_tensor, output_tensor_or_size)
+    return output_tensor
+end
+rawset(image, 'decompress', decompress)
+
+----------------------------------------------------------------------
 -- crop
 --
 local function crop(...)
